@@ -1,0 +1,151 @@
+name: MoodRegulatorEnv
+version: "1.0.0"
+description: >
+  A real-world OpenEnv environment where an AI agent tracks a user's emotional
+  state over time and recommends the right content (music, video, articles,
+  activities, quotes) to improve or amplify their mood. When the user is sad,
+  the agent comforts. When the user is happy, the agent motivates and energizes.
+
+author: khushi-yuwanathe
+license: MIT
+
+# ── Environment Type ──────────────────────────────────────────────────────────
+type: sequential          # agent takes actions one step at a time
+domain: mental-wellness   # real-world domain (not a game or toy)
+api: rest                 # exposed via HTTP REST API (FastAPI)
+
+# ── API Endpoints ─────────────────────────────────────────────────────────────
+endpoints:
+  base_url: http://localhost:8000
+  reset:  POST /reset
+  state:  GET  /state
+  step:   POST /step
+  score:  GET  /score
+  grade:  POST /grade
+  tasks:  GET  /tasks
+
+# ── Observation Space ─────────────────────────────────────────────────────────
+# What the agent sees at each step
+observation_space:
+  type: object
+  fields:
+    current_mood:
+      type: string
+      enum: [sad, anxious, angry, stressed, neutral, happy]
+      description: The user's current emotional state
+
+    mood_intensity:
+      type: float
+      range: [0.0, 1.0]
+      description: How strongly the user feels the current mood
+
+    mood_history:
+      type: array
+      items: string
+      max_length: 5
+      description: Last 5 moods oldest to newest — use this to detect trends and shifts
+
+    last_reaction:
+      type: string
+      enum: [liked, skipped, engaged, ignored, null]
+      description: How the user reacted to the previous recommendation
+
+    session_step:
+      type: integer
+      description: How many steps have elapsed in the current session
+
+    session_over:
+      type: boolean
+      description: True when the session has ended
+
+# ── Action Space ──────────────────────────────────────────────────────────────
+# What the agent can do each step
+action_space:
+  type: object
+  fields:
+    content_type:
+      type: string
+      enum: [music, article, video, activity, quote]
+      description: The type of content to recommend to the user
+
+    mood_target:
+      type: string
+      enum: [comfort, calm, distract, inspire, motivate, energize]
+      description: The emotional outcome the agent is aiming for
+
+    reason:
+      type: string
+      required: false
+      description: Optional — agent explains its reasoning (used in grading)
+
+# ── Reward ────────────────────────────────────────────────────────────────────
+reward:
+  range: [0.0, 1.0]
+  type: partial            # partial rewards at every step, not just at end
+  description: >
+    Reward is computed at each step based on:
+      - Whether the mood_target was appropriate for the current mood (+0.4)
+      - Whether the content_type fits the mood_target (+0.2)
+      - Whether the mood actually improved after the action (+0.3)
+      - User reaction bonus/penalty (±0.1)
+      - Intensity penalty for wrong actions on high-intensity moods (-0.15)
+
+  mood_to_ideal_target:
+    sad:      [comfort, inspire]
+    anxious:  [calm, distract]
+    angry:    [distract, calm]
+    stressed: [calm, distract]
+    neutral:  [inspire, energize]
+    happy:    [motivate, energize]   # amplify the good mood!
+
+# ── Tasks ─────────────────────────────────────────────────────────────────────
+tasks:
+  - name: stable_sad_user
+    difficulty: easy
+    max_steps: 5
+    seed: 42
+    description: >
+      User is stably sad. Agent must serve comforting or uplifting content
+      to move mood to neutral or happy within 5 steps.
+    success_criteria:
+      target_moods: [neutral, happy]
+      min_avg_reward: 0.5
+
+  - name: shifting_mood_user
+    difficulty: medium
+    max_steps: 8
+    seed: 7
+    description: >
+      User starts neutral but shifts to stressed mid-session.
+      Agent must detect the shift and adapt its recommendations.
+    success_criteria:
+      target_moods: [neutral, happy]
+      min_avg_reward: 0.5
+      mood_shift_detected: true
+
+  - name: happy_then_crash_recovery
+    difficulty: hard
+    max_steps: 12
+    seed: 13
+    description: >
+      User starts happy. Agent must amplify with motivating content.
+      Mid-session mood crashes to anxious. Agent must detect crash,
+      switch strategy, stabilize, and recover to neutral or happy.
+    success_criteria:
+      target_moods: [neutral, happy]
+      min_avg_reward: 0.6
+      must_recover_from_crash: true
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+evaluation:
+  method: grade_score       # grader returns 0.0–1.0 per task
+  aggregation: mean         # final score = mean of all 3 task scores
+  reproducible: true        # fixed seeds ensure same results every run
+  baseline_script: mood_regulator/baseline_agent.py
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+setup:
+  python: ">=3.10"
+  install: pip install -r requirements.txt
+  run: uvicorn mood_regulator.main:app --host 0.0.0.0 --port 8000
+  docker: docker build -t mood-regulator . && docker run -p 8000:8000 mood-regulator

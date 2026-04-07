@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoodRegulator — AI Content Recommender</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0f;
+    --surface: #1a1a1c;
+    --surface2: #242426;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0efe8;
+    --muted: #888780;
+    --accent: #5DCAA5;
+    --accent2: #7F77DD;
+    --danger: #E24B4A;
+    --warn: #EF9F27;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 760px; margin: 0 auto; }
+  .header { text-align: center; margin-bottom: 3rem; }
+  .header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+  }
+  .header h1 span { color: var(--accent); font-style: italic; }
+  .header p { color: var(--muted); font-size: 0.9rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .card-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 1rem; }
+  .detect-row { display: flex; gap: 0.75rem; }
+  .detect-row input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .detect-row input:focus { border-color: var(--accent); }
+  .detect-row input::placeholder { color: var(--muted); }
+  .btn {
+    background: var(--accent);
+    color: #04342C;
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+  .mood-display { display: flex; align-items: center; gap: 1.5rem; }
+  .mood-emoji { font-size: 3.5rem; line-height: 1; transition: all 0.4s ease; }
+  .mood-info { flex: 1; }
+  .mood-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    font-weight: 400;
+    text-transform: capitalize;
+    margin-bottom: 0.5rem;
+  }
+  .intensity-bar { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 0.4rem; }
+  .intensity-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.5s ease, background 0.5s ease; }
+  .intensity-label { font-size: 0.75rem; color: var(--muted); }
+  .history-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .chip { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .task-select { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  .task-btn {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .task-btn.active { background: var(--accent2); border-color: var(--accent2); color: #EEEDFE; }
+  .action-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+  .step-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+  .step-feed::-webkit-scrollbar { width: 3px; }
+  .step-feed::-webkit-scrollbar-track { background: transparent; }
+  .step-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .step-item {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    border-left: 3px solid transparent;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .step-item.good { border-left-color: var(--accent); }
+  .step-item.ok { border-left-color: var(--warn); }
+  .step-item.bad { border-left-color: var(--danger); }
+  .step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+  .step-num { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .reward-badge { font-size: 0.75rem; font-weight: 500; padding: 2px 8px; border-radius: 4px; }
+  .reward-badge.good { background: rgba(93,202,165,0.15); color: var(--accent); }
+  .reward-badge.ok { background: rgba(239,159,39,0.15); color: var(--warn); }
+  .reward-badge.bad { background: rgba(226,75,74,0.15); color: var(--danger); }
+  .step-content { font-size: 0.9rem; margin-bottom: 0.3rem; }
+  .step-content strong { font-weight: 500; color: var(--accent2); }
+  .step-meta { font-size: 0.75rem; color: var(--muted); }
+  .mood-arrow { color: var(--muted); margin: 0 0.3rem; }
+  .score-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+  .score-cell { background: var(--surface2); border-radius: 10px; padding: 1rem; text-align: center; }
+  .score-cell .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.4rem; }
+  .score-cell .value { font-family: 'DM Serif Display', serif; font-size: 1.6rem; font-weight: 400; }
+  .score-cell .value.good { color: var(--accent); }
+  .score-cell .value.ok { color: var(--warn); }
+  .score-cell .value.bad { color: var(--danger); }
+  .empty-state { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.9rem; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .status-dot.inactive { background: var(--muted); animation: none; }
+  .server-status { font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; margin-bottom: 1rem; }
+  .error-msg { font-size: 0.8rem; color: var(--danger); margin-top: 0.5rem; min-height: 1.2rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Mood<span>Regulator</span></h1>
+    <p>AI agent · content recommendation · OpenEnv</p>
+  </div>
+
+  <div class="card">
+    <div class="server-status">
+      <span class="status-dot inactive" id="statusDot"></span>
+      <span id="statusText">Connecting to server...</span>
+    </div>
+    <div class="card-label">Detect your mood</div>
+    <div class="detect-row">
+      <input type="text" id="moodInput" placeholder="How are you feeling right now?" />
+      <button class="btn" id="detectBtn" onclick="detectMood()">Detect</button>
+    </div>
+    <div class="error-msg" id="detectError"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Current state</div>
+    <div class="mood-display">
+      <div class="mood-emoji" id="moodEmoji">—</div>
+      <div class="mood-info">
+        <div class="mood-name" id="moodName">No session</div>
+        <div class="intensity-bar">
+          <div class="intensity-fill" id="intensityFill" style="width: 0%"></div>
+        </div>
+        <div class="intensity-label" id="intensityLabel">Start a session below</div>
+        <div class="history-chips" id="historyChips"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Session</div>
+    <div class="task-select">
+      <button class="task-btn active" onclick="selectTask('easy', this)">Easy</button>
+      <button class="task-btn" onclick="selectTask('medium', this)">Medium</button>
+      <button class="task-btn" onclick="selectTask('hard', this)">Hard</button>
+    </div>
+    <div class="action-row">
+      <button class="btn" id="startBtn" onclick="startSession()">Start session</button>
+      <button class="btn-ghost" id="stepBtn" onclick="runStep()" disabled>Run agent step</button>
+      <button class="btn-ghost" id="autoBtn" onclick="autoRun()" disabled>Auto-run</button>
+    </div>
+    <div class="error-msg" id="sessionError"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Agent steps</div>
+    <div class="step-feed" id="stepFeed">
+      <div class="empty-state">Start a session to see the agent in action</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Session scores</div>
+    <div class="score-grid">
+      <div class="score-cell">
+        <div class="label">Session score</div>
+        <div class="value" id="sessionScore">—</div>
+      </div>
+      <div class="score-cell">
+        <div class="label">Steps taken</div>
+        <div class="value" id="stepCount">—</div>
+      </div>
+      <div class="score-cell">
+        <div class="label">Final mood</div>
+        <div class="value" id="finalMood" style="font-size:1.2rem;">—</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+let selectedTask = 'easy';
+let sessionActive = false;
+let autoRunning = false;
+let stepNum = 0;
+
+const MOOD_EMOJIS = {
+  sad: '😢', anxious: '😰', angry: '😠',
+  stressed: '😓', neutral: '😐', happy: '😊'
+};
+
+const CONTENT_ICONS = {
+  music: '🎵', video: '🎬', article: '📄',
+  activity: '🏃', quote: '💬'
+};
+
+const RULES = {
+  sad:     ['music',    'comfort'],
+  anxious: ['article',  'calm'],
+  angry:   ['activity', 'distract'],
+  stressed:['music',    'calm'],
+  neutral: ['video',    'inspire'],
+  happy:   ['video',    'motivate']
+};
+
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      document.getElementById('statusDot').className = 'status-dot';
+      document.getElementById('statusText').textContent = 'Server online · ' + API;
+    } else throw new Error();
+  } catch {
+    document.getElementById('statusDot').className = 'status-dot inactive';
+    document.getElementById('statusText').textContent = 'Server offline — run uvicorn mood_regulator.main:app --port 8000';
+  }
+}
+
+async function detectMood() {
+  const text = document.getElementById('moodInput').value.trim();
+  if (!text) return;
+  document.getElementById('detectError').textContent = '';
+  document.getElementById('detectBtn').disabled = true;
+  document.getElementById('detectBtn').textContent = '...';
+  try {
+    const r = await fetch(`${API}/detect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await r.json();
+    if (data.detected) {
+      updateMoodDisplay(data.detected);
+    } else {
+      document.getElementById('detectError').textContent = JSON.stringify(data);
+    }
+  } catch (e) {
+    document.getElementById('detectError').textContent = 'Error: ' + e.message;
+  }
+  document.getElementById('detectBtn').disabled = false;
+  document.getElementById('detectBtn').textContent = 'Detect';
+}
+
+function updateMoodDisplay(state) {
+  if (!state || !state.current_mood) return;
+  const mood = state.current_mood;
+  document.getElementById('moodEmoji').textContent = MOOD_EMOJIS[mood] || '😐';
+  document.getElementById('moodName').textContent = mood;
+  const pct = Math.round((state.mood_intensity || 0) * 100);
+  document.getElementById('intensityFill').style.width = pct + '%';
+  document.getElementById('intensityFill').style.background =
+    pct > 70 ? '#E24B4A' : pct > 40 ? '#EF9F27' : '#5DCAA5';
+  document.getElementById('intensityLabel').textContent =
+    'Intensity: ' + pct + '% · Step ' + (state.session_step || 0);
+  const chips = document.getElementById('historyChips');
+  chips.innerHTML = '';
+  if (state.mood_history && state.mood_history.length) {
+    state.mood_history.forEach(m => {
+      const c = document.createElement('div');
+      c.className = 'chip';
+      c.textContent = (MOOD_EMOJIS[m] || '') + ' ' + m;
+      chips.appendChild(c);
+    });
+  }
+}
+
+function selectTask(task, el) {
+  selectedTask = task;
+  document.querySelectorAll('.task-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function startSession() {
+  document.getElementById('sessionError').textContent = '';
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('startBtn').textContent = '...';
+  try {
+    const r = await fetch(`${API}/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: selectedTask, seed: 42 })
+    });
+    const data = await r.json();
+    sessionActive = true;
+    stepNum = 0;
+    autoRunning = false;
+    document.getElementById('stepFeed').innerHTML = '';
+    document.getElementById('stepBtn').disabled = false;
+    document.getElementById('autoBtn').disabled = false;
+    document.getElementById('autoBtn').textContent = 'Auto-run';
+    document.getElementById('sessionScore').textContent = '—';
+    document.getElementById('sessionScore').className = 'value';
+    document.getElementById('stepCount').textContent = '0';
+    document.getElementById('finalMood').textContent = '—';
+    updateMoodDisplay(data);
+  } catch (e) {
+    document.getElementById('sessionError').textContent = 'Could not start session: ' + e.message;
+  }
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('startBtn').textContent = 'Start session';
+}
+
+async function runStep() {
+  if (!sessionActive) return;
+  document.getElementById('stepBtn').disabled = true;
+  document.getElementById('sessionError').textContent = '';
+
+  try {
+    const stateR = await fetch(`${API}/state`);
+    const stateData = await stateR.json();
+    const currentMood = stateData.current_mood;
+
+    const [ct, mt] = RULES[currentMood] || ['video', 'inspire'];
+
+    const r = await fetch(`${API}/step`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content_type: ct, mood_target: mt, reason: 'UI agent decision' })
+    });
+    const result = await r.json();
+    stepNum++;
+
+    addStepToFeed(stepNum, currentMood, result, ct, mt);
+    updateMoodDisplay(result.state);
+
+    document.getElementById('stepCount').textContent = stepNum;
+
+    if (result.done) {
+      sessionActive = false;
+      autoRunning = false;
+      document.getElementById('stepBtn').disabled = true;
+      document.getElementById('autoBtn').disabled = true;
+      document.getElementById('autoBtn').textContent = 'Auto-run';
+      await fetchScore(result.state);
+    }
+  } catch (e) {
+    document.getElementById('sessionError').textContent = 'Step error: ' + e.message;
+  }
+
+  if (sessionActive) document.getElementById('stepBtn').disabled = false;
+}
+
+function addStepToFeed(num, prevMood, result, ct, mt) {
+  const feed = document.getElementById('stepFeed');
+  const reward = result.reward || 0;
+  const cls = reward >= 0.7 ? 'good' : reward >= 0.4 ? 'ok' : 'bad';
+  const rewardPct = Math.round(reward * 100);
+  const newMood = result.state && result.state.current_mood ? result.state.current_mood : '?';
+  const reaction = result.state && result.state.last_reaction ? result.state.last_reaction : '—';
+
+  const div = document.createElement('div');
+  div.className = 'step-item ' + cls;
+  div.innerHTML =
+    '<div class="step-header">' +
+      '<span class="step-num">Step ' + num + '</span>' +
+      '<span class="reward-badge ' + cls + '">+' + rewardPct + '%</span>' +
+    '</div>' +
+    '<div class="step-content">' +
+      (CONTENT_ICONS[ct] || '▶') + ' <strong>' + ct + '</strong> · target: ' + mt +
+    '</div>' +
+    '<div class="step-meta">' +
+      (MOOD_EMOJIS[prevMood] || '') + ' ' + (prevMood || '?') +
+      ' <span class="mood-arrow">→</span> ' +
+      (MOOD_EMOJIS[newMood] || '') + ' ' + newMood +
+      ' · reaction: ' + reaction +
+    '</div>';
+
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+async function fetchScore(finalState) {
+  try {
+    const r = await fetch(`${API}/score`);
+    const data = await r.json();
+    const score = typeof data.session_score !== 'undefined' ? data.session_score : (data.score || 0);
+    const pct = Math.round(score * 100);
+    const cls = pct >= 70 ? 'good' : pct >= 40 ? 'ok' : 'bad';
+    document.getElementById('sessionScore').textContent = pct + '%';
+    document.getElementById('sessionScore').className = 'value ' + cls;
+
+    if (finalState && finalState.current_mood) {
+      const mood = finalState.current_mood;
+      document.getElementById('finalMood').textContent = (MOOD_EMOJIS[mood] || '') + ' ' + mood;
+    }
+  } catch (e) {
+    document.getElementById('sessionError').textContent = 'Score error: ' + e.message;
+  }
+}
+
+async function autoRun() {
+  if (!sessionActive) return;
+  if (autoRunning) {
+    autoRunning = false;
+    document.getElementById('autoBtn').textContent = 'Auto-run';
+    return;
+  }
+  autoRunning = true;
+  document.getElementById('autoBtn').textContent = 'Stop';
+  while (autoRunning && sessionActive) {
+    await runStep();
+    await new Promise(res => setTimeout(res, 700));
+  }
+  autoRunning = false;
+  document.getElementById('autoBtn').textContent = 'Auto-run';
+}
+
+document.getElementById('moodInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') detectMood();
+});
+
+checkHealth();
+setInterval(checkHealth, 10000);
+</script>
+</body>
+</html>

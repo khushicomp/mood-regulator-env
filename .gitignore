@@ -1,0 +1,9 @@
+@"
+.env
+.venv/
+venv/
+mood_regulator/venv/
+__pycache__/
+*.pyc
+New Text Document.txt
+"@ | Out-File -FilePath .gitignore -Encoding utf8
