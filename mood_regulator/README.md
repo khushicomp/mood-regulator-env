@@ -1,3 +1,15 @@
+---
+title: Mood Regulator Env
+emoji : 😊
+colorFrom: purple
+colorTo: blue
+sdk: docker
+pinned: false
+tags:
+  - openenv
+  - reinforcement-learning
+  - mood
+---
 # MoodRegulatorEnv
 
 An OpenEnv-compatible environment where an AI agent tracks a user's emotional state over time and recommends the right content to improve or amplify their mood.
