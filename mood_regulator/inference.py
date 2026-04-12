@@ -1,16 +1,20 @@
+import subprocess
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(__file__))
+# Install dependencies first
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+    "openai", "httpx", "python-dotenv", "pydantic", "fastapi", "uvicorn"])
 
-try:
-    from mood_regulator.baseline_agent import main
-except ModuleNotFoundError as e:
-    print(f"Dependency missing: {e}")
-    
-    # Fallback: simple dummy run so validator doesn't crash
-    def main():
-        print("Running fallback inference (dependencies missing)")
+# Force Python to see newly installed packages
+import importlib
+import site
+importlib.reload(site)
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Now import and run
+from mood_regulator.baseline_agent import main
 
 if __name__ == "__main__":
     main()
